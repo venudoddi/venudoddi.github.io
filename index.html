@@ -743,24 +743,22 @@
         <!-- Team Tracking Tab -->
         <div class="tab-content" id="team">
             <div class="card">
-                <div class="card-title">🔐 SECURITY REVIEWS (Australia 2026 Q1)</div>
-                <div style="margin-bottom: 20px;">
-                    <strong>Total: <span id="total-reviews">11</span></strong> | 
-                    <span style="color: var(--success);">Completed: <span id="completed-reviews">0</span></span> | 
-                    <span style="color: var(--warning);">Pending: <span id="pending-reviews">11</span></span>
-                </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <strong>Aneesha:</strong> <span id="aneesha-progress">0/8</span>
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <strong>Srikanta:</strong> <span id="srikanta-progress">0/1</span>
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <strong>Karthik:</strong> <span id="karthik-progress">0/1</span>
+                <div class="card-title">👥 TEAM TRACKING</div>
+
+                <div class="input-group" style="margin-bottom: 16px;">
+                    <label>Category</label>
+                    <div style="display: flex; gap: 8px; align-items: stretch;">
+                        <select id="team-category-select" style="flex: 1 1 auto; min-width: 0;" onchange="onCategoryChange()"></select>
+                        <button class="btn btn-small" style="width: auto; flex: 0 0 auto;" onclick="newCategory()" title="Create a new category">+ NEW</button>
+                        <button class="btn btn-small" style="width: auto; flex: 0 0 auto;" onclick="renameCategory()" title="Rename selected category">RENAME</button>
+                        <button class="btn btn-small" style="width: auto; flex: 0 0 auto;" onclick="deleteCategory()" title="Delete category and its members">×</button>
+                    </div>
                 </div>
 
-                <button class="btn btn-primary" onclick="updateSecurityReview()" style="margin-top: 16px;">UPDATE PROGRESS</button>
+                <div id="team-summary" style="margin-bottom: 16px;"></div>
+                <div id="team-members"></div>
+
+                <button class="btn btn-primary" onclick="openAddTeamMemberModal()" style="margin-top: 16px;">+ ADD TEAM MEMBER</button>
             </div>
         </div>
     </div>
@@ -798,6 +796,25 @@
             </div>
             
             <button class="btn btn-primary" onclick="addTask()" style="width: 100%;">ADD TASK</button>
+        </div>
+    </div>
+
+    <!-- Add Team Member Modal -->
+    <div class="modal" id="add-team-member-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 style="color: var(--accent-primary);">ADD TEAM MEMBER</h2>
+                <span class="close-modal" onclick="closeTeamMemberModal()" title="Close">&times;</span>
+            </div>
+            <div class="input-group">
+                <label>Name</label>
+                <input type="text" id="team-member-name" placeholder="e.g., Aneesha">
+            </div>
+            <div class="input-group">
+                <label>Total to track</label>
+                <input type="number" id="team-member-total" placeholder="8" min="1" value="1">
+            </div>
+            <button class="btn btn-primary" onclick="addTeamMember()" style="width: 100%;">ADD</button>
         </div>
     </div>
 
@@ -973,7 +990,7 @@
             await Promise.all([
                 loadTasks(),
                 loadFoodLog(),
-                loadSecurityReviews()
+                loadTeamTracking()
             ]);
         }
 
@@ -1327,71 +1344,233 @@
             }
         }
 
-        // Security Reviews
-        async function loadSecurityReviews() {
+        // Team Tracking
+        let teamData = [];
+        let currentCategory = null;
+
+        async function loadTeamTracking() {
             try {
-                const { data: reviews } = await db
-                    .from('security_reviews')
+                const { data, error } = await db
+                    .from('team_tracking')
                     .select('*')
-                    .eq('user_id', currentUser.id);
-                
-                if (reviews && reviews.length > 0) {
-                    renderSecurityReviews(reviews);
-                } else {
-                    // Initialize with default data
-                    const defaultData = [
-                        { team_member: 'aneesha', completed: 0, total: 8 },
-                        { team_member: 'srikanta', completed: 0, total: 1 },
-                        { team_member: 'karthik', completed: 0, total: 1 }
-                    ];
-                    
-                    await Promise.all(defaultData.map(d => 
-                        db.from('security_reviews').insert([{
-                            user_id: currentUser.id,
-                            ...d
-                        }])
-                    ));
-                    
-                    renderSecurityReviews(defaultData);
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+                teamData = data || [];
+
+                const categories = [...new Set(teamData.map(r => r.category))];
+                if (!currentCategory || !categories.includes(currentCategory)) {
+                    currentCategory = categories[0] || null;
                 }
+
+                renderTeam();
             } catch (error) {
-                console.error('Error loading security reviews:', error);
+                console.error('Error loading team tracking:', error);
             }
         }
 
-        function renderSecurityReviews(reviews) {
-            const aneesha = reviews.find(r => r.team_member === 'aneesha') || { completed: 0, total: 8 };
-            const srikanta = reviews.find(r => r.team_member === 'srikanta') || { completed: 0, total: 1 };
-            const karthik = reviews.find(r => r.team_member === 'karthik') || { completed: 0, total: 1 };
-            
-            const totalCompleted = aneesha.completed + srikanta.completed + karthik.completed;
-            const totalReviews = 11;
-            const totalPending = totalReviews - totalCompleted;
+        function renderTeam() {
+            const select = document.getElementById('team-category-select');
+            const persistedCategories = [...new Set(teamData.map(r => r.category))].sort();
+            const allCategories = currentCategory && !persistedCategories.includes(currentCategory)
+                ? [...persistedCategories, currentCategory]
+                : persistedCategories;
 
-            document.getElementById('total-reviews').textContent = totalReviews;
-            document.getElementById('completed-reviews').textContent = totalCompleted;
-            document.getElementById('pending-reviews').textContent = totalPending;
+            const escape = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
-            document.getElementById('aneesha-progress').textContent = `${aneesha.completed}/${aneesha.total}`;
-            document.getElementById('srikanta-progress').textContent = `${srikanta.completed}/${srikanta.total}`;
-            document.getElementById('karthik-progress').textContent = `${karthik.completed}/${karthik.total}`;
+            select.innerHTML = allCategories.length === 0
+                ? '<option value="">— No categories — click + NEW to start</option>'
+                : allCategories.map(c => `<option value="${escape(c)}" ${c === currentCategory ? 'selected' : ''}>${escape(c)}</option>`).join('');
+
+            const members = teamData.filter(r => r.category === currentCategory);
+            const totalAll = members.reduce((s, m) => s + (m.total || 0), 0);
+            const completedAll = members.reduce((s, m) => s + (m.completed || 0), 0);
+            const pendingAll = totalAll - completedAll;
+
+            document.getElementById('team-summary').innerHTML = members.length === 0 ? '' : `
+                <strong>Total: <span>${totalAll}</span></strong> |
+                <span style="color: var(--success);">Completed: <span>${completedAll}</span></span> |
+                <span style="color: var(--warning);">Pending: <span>${pendingAll}</span></span>
+            `;
+
+            const list = document.getElementById('team-members');
+            if (members.length === 0) {
+                list.innerHTML = `<div style="color: var(--text-dim); padding: 16px;">${currentCategory ? 'No members yet — click + ADD TEAM MEMBER below.' : 'Pick or create a category first.'}</div>`;
+                return;
+            }
+
+            list.innerHTML = members.map(m => `
+                <div class="task-item">
+                    <div>
+                        <div class="task-title">${escape(m.team_member)}</div>
+                        <div class="task-meta"><span style="color: var(--accent-primary); font-weight: 700;">${m.completed}</span> / ${m.total} completed</div>
+                    </div>
+                    <div class="task-actions">
+                        <button class="btn btn-small" onclick="adjustCompleted('${m.id}', -1)" title="Decrease completed">−</button>
+                        <button class="btn btn-small" onclick="adjustCompleted('${m.id}', 1)" title="Increase completed">+</button>
+                        <button class="btn btn-small" onclick="editMemberTotal('${m.id}')" title="Edit total">⋯</button>
+                        <button class="btn btn-small" onclick="deleteTeamMember('${m.id}')" title="Delete member">×</button>
+                    </div>
+                </div>
+            `).join('');
         }
 
-        async function updateSecurityReview() {
-            const aneesha = prompt('Aneesha completed reviews (out of 8):');
-            const srikanta = prompt('Srikanta completed reviews (out of 1):');
-            const karthik = prompt('Karthik completed reviews (out of 1):');
+        function onCategoryChange() {
+            currentCategory = document.getElementById('team-category-select').value || null;
+            renderTeam();
+        }
 
-            if (aneesha !== null && srikanta !== null && karthik !== null) {
-                try {
-                    await db.from('security_reviews').update({ completed: parseInt(aneesha) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'aneesha');
-                    await db.from('security_reviews').update({ completed: parseInt(srikanta) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'srikanta');
-                    await db.from('security_reviews').update({ completed: parseInt(karthik) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'karthik');
-                    
-                    await loadSecurityReviews();
-                } catch (error) {
-                    alert('Failed to update: ' + error.message);
-                }
+        function newCategory() {
+            const name = prompt('New category name:');
+            if (!name || !name.trim()) return;
+            currentCategory = name.trim();
+            renderTeam();
+        }
+
+        async function renameCategory() {
+            if (!currentCategory) return;
+            const persisted = teamData.some(r => r.category === currentCategory);
+            const newName = prompt('Rename category to:', currentCategory);
+            if (!newName || !newName.trim() || newName.trim() === currentCategory) return;
+            const trimmed = newName.trim();
+            if (!persisted) {
+                currentCategory = trimmed;
+                renderTeam();
+                return;
+            }
+            try {
+                const { error } = await db
+                    .from('team_tracking')
+                    .update({ category: trimmed })
+                    .eq('user_id', currentUser.id)
+                    .eq('category', currentCategory);
+                if (error) throw error;
+                currentCategory = trimmed;
+                await loadTeamTracking();
+            } catch (error) {
+                alert('Failed to rename: ' + error.message);
+            }
+        }
+
+        async function deleteCategory() {
+            if (!currentCategory) return;
+            const memberCount = teamData.filter(r => r.category === currentCategory).length;
+            const msg = memberCount === 0
+                ? `Drop the unused category "${currentCategory}"?`
+                : `Delete "${currentCategory}" and its ${memberCount} member${memberCount === 1 ? '' : 's'}?`;
+            if (!confirm(msg)) return;
+            if (memberCount === 0) {
+                currentCategory = null;
+                renderTeam();
+                return;
+            }
+            try {
+                const { error } = await db
+                    .from('team_tracking')
+                    .delete()
+                    .eq('user_id', currentUser.id)
+                    .eq('category', currentCategory);
+                if (error) throw error;
+                currentCategory = null;
+                await loadTeamTracking();
+            } catch (error) {
+                alert('Failed to delete: ' + error.message);
+            }
+        }
+
+        function openAddTeamMemberModal() {
+            if (!currentCategory) {
+                alert('Pick or create a category first.');
+                return;
+            }
+            document.getElementById('team-member-name').value = '';
+            document.getElementById('team-member-total').value = '1';
+            document.getElementById('add-team-member-modal').classList.add('active');
+        }
+
+        function closeTeamMemberModal() {
+            document.getElementById('add-team-member-modal').classList.remove('active');
+        }
+
+        async function addTeamMember() {
+            const name = document.getElementById('team-member-name').value.trim();
+            const total = parseInt(document.getElementById('team-member-total').value);
+            if (!name || !total || total < 1) {
+                alert('Enter a name and a total ≥ 1.');
+                return;
+            }
+            try {
+                const { error } = await db
+                    .from('team_tracking')
+                    .insert([{
+                        user_id: currentUser.id,
+                        category: currentCategory,
+                        team_member: name,
+                        completed: 0,
+                        total: total
+                    }]);
+                if (error) throw error;
+                closeTeamMemberModal();
+                await loadTeamTracking();
+            } catch (error) {
+                alert('Failed to add member: ' + error.message);
+            }
+        }
+
+        async function adjustCompleted(id, delta) {
+            const member = teamData.find(m => m.id === id);
+            if (!member) return;
+            const newVal = Math.max(0, Math.min(member.total, (member.completed || 0) + delta));
+            if (newVal === member.completed) return;
+            try {
+                const { error } = await db
+                    .from('team_tracking')
+                    .update({ completed: newVal })
+                    .eq('id', id);
+                if (error) throw error;
+                await loadTeamTracking();
+            } catch (error) {
+                alert('Failed to update: ' + error.message);
+            }
+        }
+
+        async function editMemberTotal(id) {
+            const member = teamData.find(m => m.id === id);
+            if (!member) return;
+            const input = prompt(`Update total for "${member.team_member}":`, member.total);
+            if (!input) return;
+            const total = parseInt(input);
+            if (!total || total < 1) {
+                alert('Total must be ≥ 1');
+                return;
+            }
+            try {
+                const completed = Math.min(member.completed, total);
+                const { error } = await db
+                    .from('team_tracking')
+                    .update({ total, completed })
+                    .eq('id', id);
+                if (error) throw error;
+                await loadTeamTracking();
+            } catch (error) {
+                alert('Failed to update: ' + error.message);
+            }
+        }
+
+        async function deleteTeamMember(id) {
+            const member = teamData.find(m => m.id === id);
+            if (!member) return;
+            if (!confirm(`Delete ${member.team_member} from "${member.category}"?`)) return;
+            try {
+                const { error } = await db
+                    .from('team_tracking')
+                    .delete()
+                    .eq('id', id);
+                if (error) throw error;
+                await loadTeamTracking();
+            } catch (error) {
+                alert('Failed to delete: ' + error.message);
             }
         }
 
@@ -1399,6 +1578,11 @@
         document.getElementById('add-task-modal').addEventListener('click', (e) => {
             if (e.target.id === 'add-task-modal') {
                 closeModal();
+            }
+        });
+        document.getElementById('add-team-member-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'add-team-member-modal') {
+                closeTeamMemberModal();
             }
         });
 
