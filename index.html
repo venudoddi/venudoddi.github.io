@@ -374,6 +374,37 @@
             margin-bottom: 8px;
         }
 
+        input.stat-value-input {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            margin-bottom: 8px;
+            background: transparent;
+            border: 1px dashed transparent;
+            text-align: center;
+            padding: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            width: 100%;
+            transition: border-color 0.2s;
+            -moz-appearance: textfield;
+        }
+
+        input.stat-value-input::-webkit-outer-spin-button,
+        input.stat-value-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input.stat-value-input:hover {
+            border-color: var(--border);
+        }
+
+        input.stat-value-input:focus {
+            border-color: var(--accent-primary);
+            background: rgba(0, 255, 135, 0.05);
+            outline: none;
+        }
+
         .stat-label {
             color: var(--text-dim);
             font-size: 0.85rem;
@@ -700,11 +731,15 @@
                     <div class="stat-label">REMAINING</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value" id="current-weight">80</div>
+                    <input type="number" class="stat-value-input" id="calorie-target" value="1900" min="0" step="50" title="Click to edit your daily calorie target" onchange="saveUserPref('calorie_target', parseInt(this.value) || 0)">
+                    <div class="stat-label">TARGET (KCAL)</div>
+                </div>
+                <div class="stat-card">
+                    <input type="number" class="stat-value-input" id="current-weight" value="80" min="0" step="0.1" title="Click to edit your current weight" onchange="saveUserPref('current_weight', parseFloat(this.value) || 0)">
                     <div class="stat-label">CURRENT (KG)</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">70</div>
+                    <input type="number" class="stat-value-input" id="goal-weight" value="70" min="0" step="0.1" title="Click to edit your goal weight" onchange="saveUserPref('goal_weight', parseFloat(this.value) || 0)">
                     <div class="stat-label">GOAL (KG)</div>
                 </div>
             </div>
@@ -715,7 +750,7 @@
                     <div class="calorie-fill" id="calorie-progress" style="width: 0%">0%</div>
                 </div>
                 <div style="text-align: center; color: var(--text-dim); font-size: 0.85rem;">
-                    Target: 1800-1900 calories/day
+                    Target: <span id="target-display">1900</span> kcal/day
                 </div>
             </div>
 
@@ -848,6 +883,7 @@
         let currentUser = null;
         let currentTaskType = 'work';
         let lastMatch = null;
+        let userPrefs = { calorie_target: 1900, current_weight: 80, goal_weight: 70 };
 
         function sharedBadgeHtml(row, isOwn) {
             if (!row.is_shared) return '';
@@ -1028,11 +1064,56 @@
 
         // Load all data from Supabase
         async function loadAllData() {
+            // Preferences first so the food log render uses the right calorie target.
+            await loadUserPrefs();
             await Promise.all([
                 loadTasks(),
                 loadFoodLog(),
                 loadTeamTracking()
             ]);
+        }
+
+        async function loadUserPrefs() {
+            try {
+                const { data, error } = await db
+                    .from('user_preferences')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .maybeSingle();
+                if (error) throw error;
+                if (data) {
+                    userPrefs = {
+                        calorie_target: data.calorie_target,
+                        current_weight: data.current_weight,
+                        goal_weight: data.goal_weight
+                    };
+                }
+                document.getElementById('calorie-target').value = userPrefs.calorie_target;
+                document.getElementById('current-weight').value = userPrefs.current_weight;
+                document.getElementById('goal-weight').value = userPrefs.goal_weight;
+                document.getElementById('target-display').textContent = userPrefs.calorie_target;
+            } catch (error) {
+                console.error('Error loading preferences:', error);
+            }
+        }
+
+        async function saveUserPref(field, value) {
+            userPrefs[field] = value;
+            document.getElementById('target-display').textContent = userPrefs.calorie_target;
+            try {
+                const { error } = await db
+                    .from('user_preferences')
+                    .upsert({
+                        user_id: currentUser.id,
+                        calorie_target: userPrefs.calorie_target,
+                        current_weight: userPrefs.current_weight,
+                        goal_weight: userPrefs.goal_weight
+                    }, { onConflict: 'user_id' });
+                if (error) throw error;
+                await loadFoodLog();
+            } catch (error) {
+                alert('Failed to save preference: ' + error.message);
+            }
         }
 
         // Task Management
@@ -1224,8 +1305,9 @@
             // Daily calorie stats only count *my* food, not shared meals from others.
             const todayEntries = entries.filter(e => e.date === todayKey && e.user_id === currentUser.id);
             const totalCalories = todayEntries.reduce((sum, entry) => sum + entry.calories, 0);
-            const remaining = 1900 - totalCalories;
-            const percentage = Math.min((totalCalories / 1900) * 100, 100);
+            const target = userPrefs.calorie_target || 1;
+            const remaining = target - totalCalories;
+            const percentage = Math.min((totalCalories / target) * 100, 100);
 
             document.getElementById('today-calories').textContent = totalCalories;
             document.getElementById('remaining-calories').textContent = remaining;
