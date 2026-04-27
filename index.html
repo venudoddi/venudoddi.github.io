@@ -1353,11 +1353,13 @@
                 const { data, error } = await db
                     .from('team_tracking')
                     .select('*')
-                    .eq('user_id', currentUser.id)
-                    .order('created_at', { ascending: true });
+                    .eq('user_id', currentUser.id);
 
                 if (error) throw error;
-                teamData = data || [];
+                teamData = (data || []).slice().sort((a, b) => {
+                    if (a.category !== b.category) return a.category.localeCompare(b.category);
+                    return a.team_member.localeCompare(b.team_member);
+                });
 
                 const categories = [...new Set(teamData.map(r => r.category))];
                 if (!currentCategory || !categories.includes(currentCategory)) {
@@ -1367,6 +1369,7 @@
                 renderTeam();
             } catch (error) {
                 console.error('Error loading team tracking:', error);
+                alert('Failed to load team tracking: ' + (error.message || error));
             }
         }
 
