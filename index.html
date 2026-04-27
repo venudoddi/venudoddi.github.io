@@ -650,7 +650,7 @@
                 <div class="subtitle">VENU MADHAV // ENGINEERING MANAGER</div>
             </div>
             <div class="header-right">
-                <span class="sync-status">☁️ SYNCED</span>
+                <span class="sync-status" title="Data is synced to Supabase cloud">☁️ SYNCED</span>
                 <span class="user-email" id="user-email"></span>
                 <button class="btn btn-small" id="logout-btn">LOGOUT</button>
             </div>
@@ -728,8 +728,8 @@
                     <div class="input-group" style="margin: 0;">
                         <input type="number" id="food-calories" placeholder="Calories">
                     </div>
-                    <button class="btn btn-primary" onclick="lookupCalories()">🔍</button>
-                    <button class="btn" onclick="addFoodEntry()">ADD</button>
+                    <button class="btn btn-primary" onclick="lookupCalories()" title="Look up calories from USDA">🔍</button>
+                    <button class="btn" onclick="addFoodEntry()" title="Save this food entry">ADD</button>
                 </div>
                 <div id="lookup-status" style="margin-top: 12px; font-size: 0.85rem; color: var(--text-dim);"></div>
             </div>
@@ -770,7 +770,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 style="color: var(--accent-primary);">ADD TASK</h2>
-                <span class="close-modal" onclick="closeModal()">&times;</span>
+                <span class="close-modal" onclick="closeModal()" title="Close">&times;</span>
             </div>
             
             <div class="input-group">
@@ -1038,10 +1038,10 @@
                         ${deadlineText ? `<div class="task-meta">${deadlineText}</div>` : ''}
                     </div>
                     <div class="task-actions">
-                        <button class="btn btn-small" onclick="toggleTaskComplete('${type}', '${task.id}')">
+                        <button class="btn btn-small" onclick="toggleTaskComplete('${type}', '${task.id}')" title="${task.completed ? 'Mark as incomplete' : 'Mark as complete'}">
                             ${task.completed ? '↻' : '✓'}
                         </button>
-                        <button class="btn btn-small" onclick="deleteTask('${type}', '${task.id}')">×</button>
+                        <button class="btn btn-small" onclick="deleteTask('${type}', '${task.id}')" title="Delete task">×</button>
                     </div>
                 </div>
             `;
@@ -1199,7 +1199,7 @@
                             ${usdaName ? `<div class="food-log-source" title="${usdaName.replace(/"/g, '&quot;')}">📊 ${usdaName}</div>` : ''}
                             <div class="food-log-meta">${time} · <span class="kcal">${entry.calories} kcal</span></div>
                         </div>
-                        <button class="food-log-delete" onclick="deleteFoodEntry('${entry.id}')" title="Delete">×</button>
+                        <button class="food-log-delete" onclick="deleteFoodEntry('${entry.id}')" title="Delete this entry">×</button>
                     </div>
                 `;
             };
