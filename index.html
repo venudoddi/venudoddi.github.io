@@ -715,6 +715,7 @@
         let currentUser = null;
         let currentTaskType = 'work';
         let todayDate = new Date().toISOString().split('T')[0];
+        let lastMatch = null;
 
         // Simple auth form toggles
         function showSignupForm() {
@@ -1109,13 +1110,25 @@
                 const data = await response.json();
                 
                 if (data.foods && data.foods.length > 0) {
-                    const totalCalories = data.foods.reduce((sum, food) => sum + food.calories, 0);
+                    const withCals = data.foods.filter(f => typeof f.calories === 'number');
+                    if (withCals.length === 0) {
+                        lastMatch = null;
+                        statusDiv.style.color = 'var(--warning)';
+                        statusDiv.textContent = `⚠️ Calorie data unavailable for "${foodItem}". Please enter manually.`;
+                        return;
+                    }
+                    const totalCalories = withCals.reduce((sum, food) => sum + food.calories, 0);
                     document.getElementById('food-calories').value = totalCalories;
-                    
-                    const foodNames = data.foods.map(f => `${f.name} (${f.calories} cal)`).join(', ');
-                    statusDiv.style.color = 'var(--success)';
-                    statusDiv.textContent = `✓ Found: ${foodNames}`;
+
+                    const matchedName = withCals[0].name;
+                    lastMatch = { query: foodItem, source: matchedName };
+                    const isExact = matchedName.trim().toLowerCase() === foodItem.toLowerCase();
+                    statusDiv.style.color = isExact ? 'var(--success)' : 'var(--warning)';
+                    statusDiv.textContent = isExact
+                        ? `✓ ${matchedName}: ${totalCalories} cal/100g (USDA)`
+                        : `📊 USDA matched "${foodItem}" → "${matchedName}": ${totalCalories} cal/100g. Verify or edit calories above.`;
                 } else {
+                    lastMatch = null;
                     statusDiv.style.color = 'var(--warning)';
                     statusDiv.textContent = '⚠️ No nutrition data found. Please enter calories manually.';
                 }
@@ -1127,12 +1140,19 @@
         }
 
         async function addFoodEntry() {
-            const item = document.getElementById('food-item').value;
+            const itemInput = document.getElementById('food-item').value;
             const calories = parseInt(document.getElementById('food-calories').value);
 
-            if (!item || !calories) {
+            if (!itemInput || !calories) {
                 alert('Please enter both food item and calories');
                 return;
+            }
+
+            let item = itemInput;
+            if (lastMatch &&
+                lastMatch.query.trim().toLowerCase() === itemInput.trim().toLowerCase() &&
+                lastMatch.source.trim().toLowerCase() !== itemInput.trim().toLowerCase()) {
+                item = `${itemInput} (USDA: ${lastMatch.source})`;
             }
 
             try {
@@ -1145,13 +1165,14 @@
                         calories,
                         time: new Date().toLocaleTimeString()
                     }]);
-                
+
                 if (error) throw error;
-                
+
                 document.getElementById('food-item').value = '';
                 document.getElementById('food-calories').value = '';
                 document.getElementById('lookup-status').textContent = '';
-                
+                lastMatch = null;
+
                 await loadFoodLog();
             } catch (error) {
                 alert('Failed to add food entry: ' + error.message);
