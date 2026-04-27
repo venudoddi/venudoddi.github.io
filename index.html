@@ -460,6 +460,37 @@
             color: var(--danger);
         }
 
+        .food-log-day {
+            margin-bottom: 18px;
+        }
+
+        .food-log-day:last-child {
+            margin-bottom: 0;
+        }
+
+        .food-log-day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 0.78rem;
+            letter-spacing: 1.5px;
+            color: var(--accent-secondary);
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .food-log-day-total {
+            color: var(--text-dim);
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .food-log-day-total .kcal {
+            color: var(--accent-primary);
+            font-weight: 700;
+        }
+
         .calorie-bar {
             height: 40px;
             background: rgba(255, 255, 255, 0.05);
@@ -704,7 +735,7 @@
             </div>
 
             <div class="card">
-                <div class="card-title">📝 TODAY'S LOG</div>
+                <div class="card-title">📝 FOOD LOG</div>
                 <div id="food-log"></div>
             </div>
         </div>
@@ -776,7 +807,6 @@
         let db = null;
         let currentUser = null;
         let currentTaskType = 'work';
-        let todayDate = new Date().toISOString().split('T')[0];
         let lastMatch = null;
 
         // Simple auth form toggles
@@ -1111,13 +1141,15 @@
         // Food Log
         async function loadFoodLog() {
             try {
+                const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
                 const { data: foodEntries } = await db
                     .from('food_log')
                     .select('*')
                     .eq('user_id', currentUser.id)
-                    .eq('date', todayDate)
+                    .gte('date', sevenDaysAgo)
+                    .order('date', { ascending: false })
                     .order('created_at', { ascending: true });
-                
+
                 renderFoodLog(foodEntries || []);
             } catch (error) {
                 console.error('Error loading food log:', error);
@@ -1125,7 +1157,9 @@
         }
 
         function renderFoodLog(entries) {
-            const totalCalories = entries.reduce((sum, entry) => sum + entry.calories, 0);
+            const todayKey = new Date().toISOString().split('T')[0];
+            const todayEntries = entries.filter(e => e.date === todayKey);
+            const totalCalories = todayEntries.reduce((sum, entry) => sum + entry.calories, 0);
             const remaining = 1900 - totalCalories;
             const percentage = Math.min((totalCalories / 1900) * 100, 100);
 
@@ -1135,25 +1169,54 @@
             document.getElementById('calorie-progress').textContent = Math.round(percentage) + '%';
 
             if (entries.length === 0) {
-                document.getElementById('food-log').innerHTML = '<div style="color: var(--text-dim); padding: 16px;">No entries for today</div>';
-            } else {
-                document.getElementById('food-log').innerHTML = entries.map(entry => {
-                    const m = entry.item.match(/^(.*?)\s*\(USDA:\s*(.+)\)\s*$/);
-                    const userName = (m ? m[1] : entry.item).trim();
-                    const usdaName = m ? m[2].trim() : null;
-                    const time = (entry.time || '').replace(/:\d{2}\s*(AM|PM)?$/i, ' $1').trim();
-                    return `
-                        <div class="food-log-item">
-                            <div class="food-log-body">
-                                <div class="food-log-title" title="${userName.replace(/"/g, '&quot;')}">${userName}</div>
-                                ${usdaName ? `<div class="food-log-source" title="${usdaName.replace(/"/g, '&quot;')}">📊 ${usdaName}</div>` : ''}
-                                <div class="food-log-meta">${time} · <span class="kcal">${entry.calories} kcal</span></div>
-                            </div>
-                            <button class="food-log-delete" onclick="deleteFoodEntry('${entry.id}')" title="Delete">×</button>
-                        </div>
-                    `;
-                }).join('');
+                document.getElementById('food-log').innerHTML = '<div style="color: var(--text-dim); padding: 16px;">No entries yet. Add your first meal above.</div>';
+                return;
             }
+
+            const yesterdayKey = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+            const dateLabel = (dateStr) => {
+                if (dateStr === todayKey) return 'TODAY';
+                if (dateStr === yesterdayKey) return 'YESTERDAY';
+                const d = new Date(dateStr + 'T00:00:00');
+                return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
+            };
+
+            const groups = entries.reduce((acc, e) => {
+                (acc[e.date] = acc[e.date] || []).push(e);
+                return acc;
+            }, {});
+            const sortedDates = Object.keys(groups).sort().reverse();
+
+            const renderItem = (entry) => {
+                const m = entry.item.match(/^(.*?)\s*\(USDA:\s*(.+)\)\s*$/);
+                const userName = (m ? m[1] : entry.item).trim();
+                const usdaName = m ? m[2].trim() : null;
+                const time = (entry.time || '').replace(/:\d{2}\s*(AM|PM)?$/i, ' $1').trim();
+                return `
+                    <div class="food-log-item">
+                        <div class="food-log-body">
+                            <div class="food-log-title" title="${userName.replace(/"/g, '&quot;')}">${userName}</div>
+                            ${usdaName ? `<div class="food-log-source" title="${usdaName.replace(/"/g, '&quot;')}">📊 ${usdaName}</div>` : ''}
+                            <div class="food-log-meta">${time} · <span class="kcal">${entry.calories} kcal</span></div>
+                        </div>
+                        <button class="food-log-delete" onclick="deleteFoodEntry('${entry.id}')" title="Delete">×</button>
+                    </div>
+                `;
+            };
+
+            document.getElementById('food-log').innerHTML = sortedDates.map(dateStr => {
+                const dayEntries = groups[dateStr];
+                const dayTotal = dayEntries.reduce((s, e) => s + e.calories, 0);
+                return `
+                    <div class="food-log-day">
+                        <div class="food-log-day-header">
+                            <span>${dateLabel(dateStr)}</span>
+                            <span class="food-log-day-total"><span class="kcal">${dayTotal}</span> kcal</span>
+                        </div>
+                        ${dayEntries.map(renderItem).join('')}
+                    </div>
+                `;
+            }).join('');
         }
 
         async function lookupCalories() {
@@ -1225,14 +1288,15 @@
             }
 
             try {
+                const now = new Date();
                 const { error } = await db
                     .from('food_log')
                     .insert([{
                         user_id: currentUser.id,
-                        date: todayDate,
+                        date: now.toISOString().split('T')[0],
                         item,
                         calories,
-                        time: new Date().toLocaleTimeString()
+                        time: now.toLocaleTimeString()
                     }]);
 
                 if (error) throw error;
