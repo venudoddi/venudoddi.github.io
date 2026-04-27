@@ -840,16 +840,20 @@
             showAuth();
         });
 
-        // Toggle between login and signup
-        document.getElementById('show-signup').addEventListener('click', () => {
-            document.getElementById('login-form').style.display = 'none';
-            document.getElementById('signup-form').style.display = 'block';
-        });
+        // Toggle between login and signup - must run after DOM is loaded
+        function initAuthToggles() {
+            document.getElementById('show-signup').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('signup-form').style.display = 'block';
+            });
 
-        document.getElementById('show-login').addEventListener('click', () => {
-            document.getElementById('signup-form').style.display = 'none';
-            document.getElementById('login-form').style.display = 'block';
-        });
+            document.getElementById('show-login').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('signup-form').style.display = 'none';
+                document.getElementById('login-form').style.display = 'block';
+            });
+        }
 
         // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1239,6 +1243,7 @@
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', () => {
+            initAuthToggles();
             initSupabase();
         });
     </script>
