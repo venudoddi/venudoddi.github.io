@@ -808,7 +808,7 @@
         <header>
             <div class="header-left">
                 <h1>⚡ COMMAND CENTER</h1>
-                <div class="subtitle">VENU MADHAV // ENGINEERING MANAGER</div>
+                <div class="subtitle" id="user-subtitle"></div>
             </div>
             <div class="header-right">
                 <span class="sync-status" title="Data is synced to Supabase cloud">☁️ SYNCED</span>
@@ -1119,7 +1119,15 @@
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('app-screen').style.display = 'block';
             document.getElementById('user-email').textContent = currentUser.email;
+            document.getElementById('user-subtitle').textContent = formatUserSubtitle(currentUser.email);
             loadAllData();
+        }
+
+        function formatUserSubtitle(email) {
+            if (!email) return '';
+            const [local, domain] = email.split('@');
+            const name = local.replace(/[._]/g, ' ').toUpperCase();
+            return domain ? `${name} // ${domain.toUpperCase()}` : name;
         }
 
         function showError(message, persist = false) {
