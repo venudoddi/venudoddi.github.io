@@ -849,6 +849,24 @@
         let currentTaskType = 'work';
         let lastMatch = null;
 
+        function sharedBadgeHtml(row, isOwn) {
+            if (!row.is_shared) return '';
+            const email = row.created_by_email;
+            let label, tooltip;
+            if (isOwn) {
+                label = 'SHARED';
+                tooltip = 'Shared with everyone';
+            } else if (email) {
+                label = `BY ${email.split('@')[0].toUpperCase()}`;
+                tooltip = `Shared by ${email}`;
+            } else {
+                label = 'SHARED';
+                tooltip = 'Shared by another user';
+            }
+            const tip = tooltip.replace(/"/g, '&quot;');
+            return `<span title="${tip}" style="font-size: 0.7rem; color: var(--accent-secondary); margin-left: 6px; letter-spacing: 1px;">👥 ${label}</span>`;
+        }
+
         // Simple auth form toggles
         function showSignupForm() {
             document.getElementById('login-form').style.display = 'none';
@@ -1066,7 +1084,7 @@
         function renderTaskItem(task, type) {
             const isOwn = task.user_id === currentUser.id;
             const priorityBadge = task.priority === 'asap' ? '🔥 ASAP' : task.priority === 'urgent' ? '⚡ URGENT' : '';
-            const sharedBadge = task.is_shared ? `<span title="Shared with everyone" style="font-size: 0.7rem; color: var(--accent-secondary); margin-left: 6px; letter-spacing: 1px;">👥 SHARED</span>` : '';
+            const sharedBadge = sharedBadgeHtml(task, isOwn);
             const deadlineText = task.deadline ? `Due: ${task.deadline}` : '';
 
             return `
@@ -1121,6 +1139,7 @@
                     .from(tableName)
                     .insert([{
                         user_id: currentUser.id,
+                        created_by_email: currentUser.email,
                         title,
                         description,
                         deadline: deadline || null,
@@ -1238,7 +1257,7 @@
                 const userName = (m ? m[1] : entry.item).trim();
                 const usdaName = m ? m[2].trim() : null;
                 const time = (entry.time || '').replace(/:\d{2}\s*(AM|PM)?$/i, ' $1').trim();
-                const sharedBadge = entry.is_shared ? `<span title="Shared with everyone" style="font-size: 0.7rem; color: var(--accent-secondary); margin-left: 6px; letter-spacing: 1px;">👥 SHARED</span>` : '';
+                const sharedBadge = sharedBadgeHtml(entry, isOwn);
                 return `
                     <div class="food-log-item">
                         <div class="food-log-body">
@@ -1343,6 +1362,7 @@
                     .from('food_log')
                     .insert([{
                         user_id: currentUser.id,
+                        created_by_email: currentUser.email,
                         date: now.toISOString().split('T')[0],
                         item,
                         calories,
@@ -1440,7 +1460,7 @@
 
             list.innerHTML = members.map(m => {
                 const isOwn = m.user_id === currentUser.id;
-                const sharedBadge = m.is_shared ? `<span title="Shared with everyone" style="font-size: 0.7rem; color: var(--accent-secondary); margin-left: 6px; letter-spacing: 1px;">👥 SHARED</span>` : '';
+                const sharedBadge = sharedBadgeHtml(m, isOwn);
                 return `
                     <div class="task-item">
                         <div style="flex: 1; min-width: 0;">
@@ -1554,6 +1574,7 @@
                     .from('team_tracking')
                     .insert([{
                         user_id: currentUser.id,
+                        created_by_email: currentUser.email,
                         category: currentCategory,
                         team_member: name,
                         description: description || null,
