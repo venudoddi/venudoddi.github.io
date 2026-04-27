@@ -731,7 +731,13 @@
                     <button class="btn btn-primary" onclick="lookupCalories()" title="Look up calories from USDA">🔍</button>
                     <button class="btn" onclick="addFoodEntry()" title="Save this food entry">ADD</button>
                 </div>
-                <div id="lookup-status" style="margin-top: 12px; font-size: 0.85rem; color: var(--text-dim);"></div>
+                <div style="margin-top: 10px;">
+                    <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-dim); font-size: 0.85rem;">
+                        <input type="checkbox" id="food-shared" style="width: auto;">
+                        <span>Share this entry with everyone</span>
+                    </label>
+                </div>
+                <div id="lookup-status" style="margin-top: 8px; font-size: 0.85rem; color: var(--text-dim);"></div>
             </div>
 
             <div class="card">
@@ -794,7 +800,14 @@
                     <option value="asap">ASAP</option>
                 </select>
             </div>
-            
+
+            <div class="input-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="task-shared" style="width: auto;">
+                    <span>Share with everyone (visible to other users)</span>
+                </label>
+            </div>
+
             <button class="btn btn-primary" onclick="addTask()" style="width: 100%;">ADD TASK</button>
         </div>
     </div>
@@ -817,6 +830,12 @@
             <div class="input-group">
                 <label>Total to track</label>
                 <input type="number" id="team-member-total" placeholder="8" min="1" value="1">
+            </div>
+            <div class="input-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="team-member-shared" style="width: auto;">
+                    <span>Share with everyone (visible to other users)</span>
+                </label>
             </div>
             <button class="btn btn-primary" onclick="addTeamMember()" style="width: 100%;">ADD</button>
         </div>
@@ -1001,20 +1020,17 @@
         // Task Management
         async function loadTasks() {
             try {
-                // Load work tasks
+                // RLS surfaces own + shared rows; no user_id filter needed.
                 const { data: workTasks } = await db
                     .from('work_tasks')
                     .select('*')
-                    .eq('user_id', currentUser.id)
                     .order('created_at', { ascending: false });
-                
-                // Load personal tasks
+
                 const { data: personalTasks } = await db
                     .from('personal_tasks')
                     .select('*')
-                    .eq('user_id', currentUser.id)
                     .order('created_at', { ascending: false });
-                
+
                 renderTasks('work', workTasks || []);
                 renderTasks('personal', personalTasks || []);
             } catch (error) {
@@ -1048,21 +1064,25 @@
         }
 
         function renderTaskItem(task, type) {
+            const isOwn = task.user_id === currentUser.id;
             const priorityBadge = task.priority === 'asap' ? '🔥 ASAP' : task.priority === 'urgent' ? '⚡ URGENT' : '';
+            const sharedBadge = task.is_shared ? `<span title="Shared with everyone" style="font-size: 0.7rem; color: var(--accent-secondary); margin-left: 6px; letter-spacing: 1px;">👥 SHARED</span>` : '';
             const deadlineText = task.deadline ? `Due: ${task.deadline}` : '';
-            
+
             return `
                 <div class="task-item ${task.completed ? 'completed' : ''}">
-                    <div>
-                        <div class="task-title">${task.title} ${priorityBadge ? `<span style="color: var(--warning); font-size: 0.85rem;">${priorityBadge}</span>` : ''}</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div class="task-title">${task.title} ${priorityBadge ? `<span style="color: var(--warning); font-size: 0.85rem;">${priorityBadge}</span>` : ''}${sharedBadge}</div>
                         ${task.description ? `<div class="task-meta">${task.description}</div>` : ''}
                         ${deadlineText ? `<div class="task-meta">${deadlineText}</div>` : ''}
                     </div>
                     <div class="task-actions">
-                        <button class="btn btn-small" onclick="toggleTaskComplete('${type}', '${task.id}')" title="${task.completed ? 'Mark as incomplete' : 'Mark as complete'}">
-                            ${task.completed ? '↻' : '✓'}
-                        </button>
-                        <button class="btn btn-small" onclick="deleteTask('${type}', '${task.id}')" title="Delete task">×</button>
+                        ${isOwn ? `
+                            <button class="btn btn-small" onclick="toggleTaskComplete('${type}', '${task.id}')" title="${task.completed ? 'Mark as incomplete' : 'Mark as complete'}">
+                                ${task.completed ? '↻' : '✓'}
+                            </button>
+                            <button class="btn btn-small" onclick="deleteTask('${type}', '${task.id}')" title="Delete task">×</button>
+                        ` : `<span style="font-size: 0.7rem; color: var(--text-dim); letter-spacing: 1px;" title="Shared by another user — read-only">READ-ONLY</span>`}
                     </div>
                 </div>
             `;
@@ -1079,6 +1099,7 @@
             document.getElementById('task-desc').value = '';
             document.getElementById('task-deadline').value = '';
             document.getElementById('task-priority').value = 'normal';
+            document.getElementById('task-shared').checked = false;
         }
 
         async function addTask() {
@@ -1086,6 +1107,7 @@
             const description = document.getElementById('task-desc').value;
             const deadline = document.getElementById('task-deadline').value;
             const priority = document.getElementById('task-priority').value;
+            const isShared = document.getElementById('task-shared').checked;
 
             if (!title) {
                 alert('Please enter a task title');
@@ -1093,7 +1115,7 @@
             }
 
             const tableName = currentTaskType === 'work' ? 'work_tasks' : 'personal_tasks';
-            
+
             try {
                 const { error } = await db
                     .from(tableName)
@@ -1103,11 +1125,12 @@
                         description,
                         deadline: deadline || null,
                         priority,
-                        completed: false
+                        completed: false,
+                        is_shared: isShared
                     }]);
-                
+
                 if (error) throw error;
-                
+
                 closeModal();
                 await loadTasks();
             } catch (error) {
@@ -1163,10 +1186,10 @@
         async function loadFoodLog() {
             try {
                 const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+                // RLS surfaces own + shared rows; no user_id filter needed.
                 const { data: foodEntries } = await db
                     .from('food_log')
                     .select('*')
-                    .eq('user_id', currentUser.id)
                     .gte('date', sevenDaysAgo)
                     .order('date', { ascending: false })
                     .order('created_at', { ascending: true });
@@ -1179,7 +1202,8 @@
 
         function renderFoodLog(entries) {
             const todayKey = new Date().toISOString().split('T')[0];
-            const todayEntries = entries.filter(e => e.date === todayKey);
+            // Daily calorie stats only count *my* food, not shared meals from others.
+            const todayEntries = entries.filter(e => e.date === todayKey && e.user_id === currentUser.id);
             const totalCalories = todayEntries.reduce((sum, entry) => sum + entry.calories, 0);
             const remaining = 1900 - totalCalories;
             const percentage = Math.min((totalCalories / 1900) * 100, 100);
@@ -1209,18 +1233,22 @@
             const sortedDates = Object.keys(groups).sort().reverse();
 
             const renderItem = (entry) => {
+                const isOwn = entry.user_id === currentUser.id;
                 const m = entry.item.match(/^(.*?)\s*\(USDA:\s*(.+)\)\s*$/);
                 const userName = (m ? m[1] : entry.item).trim();
                 const usdaName = m ? m[2].trim() : null;
                 const time = (entry.time || '').replace(/:\d{2}\s*(AM|PM)?$/i, ' $1').trim();
+                const sharedBadge = entry.is_shared ? `<span title="Shared with everyone" style="font-size: 0.7rem; color: var(--accent-secondary); margin-left: 6px; letter-spacing: 1px;">👥 SHARED</span>` : '';
                 return `
                     <div class="food-log-item">
                         <div class="food-log-body">
-                            <div class="food-log-title" title="${userName.replace(/"/g, '&quot;')}">${userName}</div>
+                            <div class="food-log-title" title="${userName.replace(/"/g, '&quot;')}">${userName}${sharedBadge}</div>
                             ${usdaName ? `<div class="food-log-source" title="${usdaName.replace(/"/g, '&quot;')}">📊 ${usdaName}</div>` : ''}
                             <div class="food-log-meta">${time} · <span class="kcal">${entry.calories} kcal</span></div>
                         </div>
-                        <button class="food-log-delete" onclick="deleteFoodEntry('${entry.id}')" title="Delete this entry">×</button>
+                        ${isOwn
+                            ? `<button class="food-log-delete" onclick="deleteFoodEntry('${entry.id}')" title="Delete this entry">×</button>`
+                            : `<span style="font-size: 0.7rem; color: var(--text-dim); letter-spacing: 1px; align-self: center;" title="Shared by another user — read-only">READ-ONLY</span>`}
                     </div>
                 `;
             };
@@ -1295,6 +1323,7 @@
         async function addFoodEntry() {
             const itemInput = document.getElementById('food-item').value;
             const calories = parseInt(document.getElementById('food-calories').value);
+            const isShared = document.getElementById('food-shared').checked;
 
             if (!itemInput || !calories) {
                 alert('Please enter both food item and calories');
@@ -1317,13 +1346,15 @@
                         date: now.toISOString().split('T')[0],
                         item,
                         calories,
-                        time: now.toLocaleTimeString()
+                        time: now.toLocaleTimeString(),
+                        is_shared: isShared
                     }]);
 
                 if (error) throw error;
 
                 document.getElementById('food-item').value = '';
                 document.getElementById('food-calories').value = '';
+                document.getElementById('food-shared').checked = false;
                 document.getElementById('lookup-status').textContent = '';
                 lastMatch = null;
 
@@ -1354,10 +1385,10 @@
 
         async function loadTeamTracking() {
             try {
+                // RLS surfaces own + shared rows; no user_id filter needed.
                 const { data, error } = await db
                     .from('team_tracking')
-                    .select('*')
-                    .eq('user_id', currentUser.id);
+                    .select('*');
 
                 if (error) throw error;
                 teamData = (data || []).slice().sort((a, b) => {
@@ -1407,21 +1438,27 @@
                 return;
             }
 
-            list.innerHTML = members.map(m => `
-                <div class="task-item">
-                    <div style="flex: 1; min-width: 0;">
-                        <div class="task-title">${escape(m.team_member)}</div>
-                        ${m.description ? `<div style="font-size: 0.85rem; color: var(--text-dim); margin: 4px 0; white-space: pre-wrap;">${escape(m.description)}</div>` : ''}
-                        <div class="task-meta"><span style="color: var(--accent-primary); font-weight: 700;">${m.completed}</span> / ${m.total} completed</div>
+            list.innerHTML = members.map(m => {
+                const isOwn = m.user_id === currentUser.id;
+                const sharedBadge = m.is_shared ? `<span title="Shared with everyone" style="font-size: 0.7rem; color: var(--accent-secondary); margin-left: 6px; letter-spacing: 1px;">👥 SHARED</span>` : '';
+                return `
+                    <div class="task-item">
+                        <div style="flex: 1; min-width: 0;">
+                            <div class="task-title">${escape(m.team_member)}${sharedBadge}</div>
+                            ${m.description ? `<div style="font-size: 0.85rem; color: var(--text-dim); margin: 4px 0; white-space: pre-wrap;">${escape(m.description)}</div>` : ''}
+                            <div class="task-meta"><span style="color: var(--accent-primary); font-weight: 700;">${m.completed}</span> / ${m.total} completed</div>
+                        </div>
+                        <div class="task-actions">
+                            ${isOwn ? `
+                                <button class="btn btn-small" onclick="adjustCompleted('${m.id}', -1)" title="Decrease completed">−</button>
+                                <button class="btn btn-small" onclick="adjustCompleted('${m.id}', 1)" title="Increase completed">+</button>
+                                <button class="btn btn-small" onclick="editMemberTotal('${m.id}')" title="Edit total">⋯</button>
+                                <button class="btn btn-small" onclick="deleteTeamMember('${m.id}')" title="Delete member">×</button>
+                            ` : `<span style="font-size: 0.7rem; color: var(--text-dim); letter-spacing: 1px;" title="Shared by another user — read-only">READ-ONLY</span>`}
+                        </div>
                     </div>
-                    <div class="task-actions">
-                        <button class="btn btn-small" onclick="adjustCompleted('${m.id}', -1)" title="Decrease completed">−</button>
-                        <button class="btn btn-small" onclick="adjustCompleted('${m.id}', 1)" title="Increase completed">+</button>
-                        <button class="btn btn-small" onclick="editMemberTotal('${m.id}')" title="Edit total">⋯</button>
-                        <button class="btn btn-small" onclick="deleteTeamMember('${m.id}')" title="Delete member">×</button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function onCategoryChange() {
@@ -1495,6 +1532,7 @@
             document.getElementById('team-member-name').value = '';
             document.getElementById('team-member-description').value = '';
             document.getElementById('team-member-total').value = '1';
+            document.getElementById('team-member-shared').checked = false;
             document.getElementById('add-team-member-modal').classList.add('active');
         }
 
@@ -1506,6 +1544,7 @@
             const name = document.getElementById('team-member-name').value.trim();
             const description = document.getElementById('team-member-description').value.trim();
             const total = parseInt(document.getElementById('team-member-total').value);
+            const isShared = document.getElementById('team-member-shared').checked;
             if (!name || !total || total < 1) {
                 alert('Enter a name and a total ≥ 1.');
                 return;
@@ -1519,7 +1558,8 @@
                         team_member: name,
                         description: description || null,
                         completed: 0,
-                        total: total
+                        total: total,
+                        is_shared: isShared
                     }]);
                 if (error) throw error;
                 closeTeamMemberModal();
