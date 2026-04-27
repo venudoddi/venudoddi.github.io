@@ -522,6 +522,136 @@
             font-weight: 700;
         }
 
+        .analytics-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .analytics-stat {
+            text-align: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 3px solid var(--accent-secondary);
+        }
+
+        .analytics-stat-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            margin-bottom: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .analytics-stat-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            justify-content: flex-end;
+        }
+
+        .chart-view-btn {
+            padding: 4px 14px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            cursor: pointer;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        .chart-view-btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .chart-view-btn.active {
+            background: var(--accent-primary);
+            color: var(--bg-dark);
+            border-color: var(--accent-primary);
+        }
+
+        .chart-legend {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .chart-legend-swatches {
+            display: flex;
+            gap: 12px;
+        }
+
+        .chart-legend-swatch {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .chart-legend-swatch::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--swatch-color, var(--accent-primary));
+            display: inline-block;
+        }
+
+        .chart-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 180px;
+            padding-bottom: 24px;
+            box-sizing: border-box;
+            overflow-x: auto;
+        }
+
+        .chart-bar-wrapper {
+            flex: 1 0 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            height: 100%;
+            position: relative;
+            min-width: 28px;
+        }
+
+        .chart-bar-value {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            margin-bottom: 2px;
+            white-space: nowrap;
+        }
+
+        .chart-bar {
+            width: 70%;
+            min-height: 1px;
+            border-radius: 2px 2px 0 0;
+            transition: height 0.3s;
+        }
+
+        .chart-bar-label {
+            position: absolute;
+            bottom: 0;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
         .calorie-bar {
             height: 40px;
             background: rgba(255, 255, 255, 0.05);
@@ -776,6 +906,46 @@
             </div>
 
             <div class="card">
+                <div class="card-title">📊 ANALYTICS</div>
+
+                <div class="analytics-summary">
+                    <div class="analytics-stat">
+                        <div class="analytics-stat-value" id="analytics-avg7">—</div>
+                        <div class="analytics-stat-label">7-DAY AVG (KCAL)</div>
+                    </div>
+                    <div class="analytics-stat">
+                        <div class="analytics-stat-value" id="analytics-avg30">—</div>
+                        <div class="analytics-stat-label">30-DAY AVG (KCAL)</div>
+                    </div>
+                    <div class="analytics-stat">
+                        <div class="analytics-stat-value" id="analytics-hitrate">—</div>
+                        <div class="analytics-stat-label">7-DAY ON-TARGET</div>
+                    </div>
+                    <div class="analytics-stat">
+                        <div class="analytics-stat-value" id="analytics-streak">0</div>
+                        <div class="analytics-stat-label">DAY STREAK</div>
+                    </div>
+                </div>
+
+                <div class="chart-controls">
+                    <button class="chart-view-btn active" data-view="day" onclick="setChartView('day')">DAY</button>
+                    <button class="chart-view-btn" data-view="week" onclick="setChartView('week')">WEEK</button>
+                </div>
+
+                <div class="chart-legend">
+                    <span>Target: <span id="chart-target-display">1900</span> kcal</span>
+                    <span class="chart-legend-swatches">
+                        <span class="chart-legend-swatch" style="--swatch-color: var(--accent-primary);">at/under</span>
+                        <span class="chart-legend-swatch" style="--swatch-color: var(--warning);">slightly over</span>
+                        <span class="chart-legend-swatch" style="--swatch-color: var(--danger);">over</span>
+                        <span class="chart-legend-swatch" style="--swatch-color: var(--border);">no log</span>
+                    </span>
+                </div>
+
+                <div class="chart-bars" id="analytics-chart"></div>
+            </div>
+
+            <div class="card">
                 <div class="card-title">📝 FOOD LOG</div>
                 <div id="food-log"></div>
             </div>
@@ -884,6 +1054,8 @@
         let currentTaskType = 'work';
         let lastMatch = null;
         let userPrefs = { calorie_target: 1900, current_weight: 80, goal_weight: 70 };
+        let foodEntries = [];
+        let chartView = 'day';
 
         function sharedBadgeHtml(row, isOwn) {
             if (!row.is_shared) return '';
@@ -1285,19 +1457,134 @@
         // Food Log
         async function loadFoodLog() {
             try {
-                const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+                const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
                 // RLS surfaces own + shared rows; no user_id filter needed.
-                const { data: foodEntries } = await db
+                const { data } = await db
                     .from('food_log')
                     .select('*')
-                    .gte('date', sevenDaysAgo)
+                    .gte('date', thirtyDaysAgo)
                     .order('date', { ascending: false })
                     .order('created_at', { ascending: true });
 
-                renderFoodLog(foodEntries || []);
+                foodEntries = data || [];
+
+                // Log section shows last 7 days; analytics uses the full 30-day window.
+                const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+                renderFoodLog(foodEntries.filter(e => e.date >= sevenDaysAgo));
+                renderAnalytics(foodEntries);
             } catch (error) {
                 console.error('Error loading food log:', error);
             }
+        }
+
+        function renderAnalytics(entries) {
+            const target = userPrefs.calorie_target || 1;
+            document.getElementById('chart-target-display').textContent = userPrefs.calorie_target;
+
+            // Daily totals from own entries only
+            const dailyTotals = {};
+            for (const e of entries) {
+                if (e.user_id !== currentUser.id) continue;
+                dailyTotals[e.date] = (dailyTotals[e.date] || 0) + e.calories;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dayKey = (d) => d.toISOString().split('T')[0];
+
+            const days = [];
+            for (let i = 29; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                days.push({ date: dayKey(d), dateObj: d, total: dailyTotals[dayKey(d)] || 0 });
+            }
+
+            const last7 = days.slice(-7);
+            const sumTotal = (arr) => arr.reduce((s, d) => s + d.total, 0);
+
+            const avg7 = Math.round(sumTotal(last7) / 7);
+            const avg30 = Math.round(sumTotal(days) / 30);
+            const daysWithLog7 = last7.filter(d => d.total > 0).length;
+            const onTarget7 = last7.filter(d => d.total > 0 && d.total <= target).length;
+
+            // Streak: consecutive days BEFORE today with a log that came in at/under target
+            let streak = 0;
+            for (let i = days.length - 2; i >= 0; i--) {
+                const d = days[i];
+                if (d.total === 0) break;
+                if (d.total <= target) streak++;
+                else break;
+            }
+
+            document.getElementById('analytics-avg7').textContent = avg7 > 0 ? avg7 : '—';
+            document.getElementById('analytics-avg30').textContent = avg30 > 0 ? avg30 : '—';
+            document.getElementById('analytics-hitrate').textContent = daysWithLog7 > 0 ? `${onTarget7}/${daysWithLog7}` : '—';
+            document.getElementById('analytics-streak').textContent = streak;
+
+            if (chartView === 'day') {
+                renderChart(days.slice(-14).map(d => ({
+                    label: d.dateObj.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3),
+                    tooltip: `${d.dateObj.toLocaleDateString()}: ${d.total} kcal`,
+                    value: d.total,
+                    target
+                })));
+            } else {
+                // Week view: group by ISO Monday
+                const weekStart = (d) => {
+                    const x = new Date(d);
+                    x.setHours(0, 0, 0, 0);
+                    const day = x.getDay() || 7;
+                    x.setDate(x.getDate() - (day - 1));
+                    return x;
+                };
+                const weeks = new Map();
+                for (const d of days) {
+                    const ws = weekStart(d.dateObj);
+                    const key = dayKey(ws);
+                    if (!weeks.has(key)) weeks.set(key, { sum: 0, count: 0, start: ws });
+                    const w = weeks.get(key);
+                    w.sum += d.total;
+                    w.count += 1;
+                }
+                const weekArr = [...weeks.values()].map(w => {
+                    const avg = Math.round(w.sum / w.count);
+                    return {
+                        label: w.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        tooltip: `Week of ${w.start.toLocaleDateString()}: avg ${avg} kcal/day`,
+                        value: avg,
+                        target
+                    };
+                });
+                renderChart(weekArr);
+            }
+        }
+
+        function renderChart(data) {
+            const target = data[0]?.target || 0;
+            const max = Math.max(target, ...data.map(d => d.value)) || 1;
+            const chartEl = document.getElementById('analytics-chart');
+            chartEl.innerHTML = data.map(d => {
+                const heightPct = (d.value / max) * 100;
+                let color;
+                if (d.value === 0) color = 'var(--border)';
+                else if (d.value <= target) color = 'var(--accent-primary)';
+                else if (d.value <= target * 1.1) color = 'var(--warning)';
+                else color = 'var(--danger)';
+                return `
+                    <div class="chart-bar-wrapper" title="${d.tooltip.replace(/"/g, '&quot;')}">
+                        <div class="chart-bar-value">${d.value || ''}</div>
+                        <div class="chart-bar" style="height: ${heightPct}%; background: ${color};"></div>
+                        <div class="chart-bar-label">${d.label}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function setChartView(view) {
+            chartView = view;
+            document.querySelectorAll('.chart-view-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.view === view));
+            renderAnalytics(foodEntries);
         }
 
         function renderFoodLog(entries) {
