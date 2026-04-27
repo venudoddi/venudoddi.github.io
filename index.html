@@ -523,7 +523,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary">LOGIN</button>
                 <div class="auth-switch">
-                    Don't have an account? <a id="show-signup">Sign up</a>
+                    Don't have an account? <a onclick="showSignupForm(); return false;" style="cursor: pointer;">Sign up</a>
                 </div>
             </form>
 
@@ -543,7 +543,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary">SIGN UP</button>
                 <div class="auth-switch">
-                    Already have an account? <a id="show-login">Login</a>
+                    Already have an account? <a onclick="showLoginForm(); return false;" style="cursor: pointer;">Login</a>
                 </div>
             </form>
         </div>
@@ -716,6 +716,17 @@
         let currentTaskType = 'work';
         let todayDate = new Date().toISOString().split('T')[0];
 
+        // Simple auth form toggles
+        function showSignupForm() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('signup-form').style.display = 'block';
+        }
+
+        function showLoginForm() {
+            document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
+        }
+
         // Initialize Supabase
         async function initSupabase() {
             try {
@@ -839,21 +850,6 @@
             currentUser = null;
             showAuth();
         });
-
-        // Toggle between login and signup - must run after DOM is loaded
-        function initAuthToggles() {
-            document.getElementById('show-signup').addEventListener('click', (e) => {
-                e.preventDefault();
-                document.getElementById('login-form').style.display = 'none';
-                document.getElementById('signup-form').style.display = 'block';
-            });
-
-            document.getElementById('show-login').addEventListener('click', (e) => {
-                e.preventDefault();
-                document.getElementById('signup-form').style.display = 'none';
-                document.getElementById('login-form').style.display = 'block';
-            });
-        }
 
         // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1243,7 +1239,6 @@
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', () => {
-            initAuthToggles();
             initSupabase();
         });
     </script>
