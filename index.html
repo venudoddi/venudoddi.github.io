@@ -523,7 +523,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary">LOGIN</button>
                 <div class="auth-switch">
-                    Don't have an account? <a onclick="showSignupForm(); return false;" style="cursor: pointer;">Sign up</a>
+                    Don't have an account? <a href="#" onclick="showSignupForm(); return false;" style="cursor: pointer;">Sign up</a>
                 </div>
             </form>
 
@@ -543,7 +543,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary">SIGN UP</button>
                 <div class="auth-switch">
-                    Already have an account? <a onclick="showLoginForm(); return false;" style="cursor: pointer;">Login</a>
+                    Already have an account? <a href="#" onclick="showLoginForm(); return false;" style="cursor: pointer;">Login</a>
                 </div>
             </form>
         </div>
@@ -711,7 +711,7 @@
     <script>
         // Configuration
         const API_URL = 'https://venu-tracker-api.onrender.com';
-        let supabase = null;
+        let db = null;
         let currentUser = null;
         let currentTaskType = 'work';
         let todayDate = new Date().toISOString().split('T')[0];
@@ -733,10 +733,10 @@
                 const response = await fetch(`${API_URL}/api/config`);
                 const config = await response.json();
                 
-                supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
+                db = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
                 
                 // Check if user is already logged in
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session } } = await db.auth.getSession();
                 if (session) {
                     currentUser = session.user;
                     showApp();
@@ -745,7 +745,8 @@
                 }
             } catch (error) {
                 console.error('Failed to initialize Supabase:', error);
-                showError('Failed to connect to database. Please refresh the page.');
+                showError('Backend unreachable (venu-tracker-api.onrender.com). The free-tier API may be sleeping — wait ~30s and refresh, or check the service is up.', true);
+                showAuth();
             }
         }
 
@@ -762,13 +763,15 @@
             loadAllData();
         }
 
-        function showError(message) {
+        function showError(message, persist = false) {
             const errorDiv = document.getElementById('auth-error');
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 5000);
+            if (!persist) {
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 5000);
+            }
         }
 
         function showSuccess(message) {
@@ -783,14 +786,18 @@
         // Login
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (!db) {
+                showError('Backend not ready — cannot log in. Refresh once the backend is up.');
+                return;
+            }
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
-            
+
             const form = e.target;
             form.classList.add('loading');
-            
+
             try {
-                const { data, error } = await supabase.auth.signInWithPassword({
+                const { data, error } = await db.auth.signInWithPassword({
                     email: email,
                     password: password,
                 });
@@ -809,6 +816,10 @@
         // Signup
         document.getElementById('signup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (!db) {
+                showError('Backend not ready — cannot sign up. Refresh once the backend is up.');
+                return;
+            }
             const email = document.getElementById('signup-email').value;
             const password = document.getElementById('signup-password').value;
             const confirmPassword = document.getElementById('signup-password-confirm').value;
@@ -827,7 +838,7 @@
             form.classList.add('loading');
             
             try {
-                const { data, error } = await supabase.auth.signUp({
+                const { data, error } = await db.auth.signUp({
                     email: email,
                     password: password,
                 });
@@ -846,7 +857,7 @@
 
         // Logout
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            await supabase.auth.signOut();
+            await db.auth.signOut();
             currentUser = null;
             showAuth();
         });
@@ -877,14 +888,14 @@
         async function loadTasks() {
             try {
                 // Load work tasks
-                const { data: workTasks } = await supabase
+                const { data: workTasks } = await db
                     .from('work_tasks')
                     .select('*')
                     .eq('user_id', currentUser.id)
                     .order('created_at', { ascending: false });
                 
                 // Load personal tasks
-                const { data: personalTasks } = await supabase
+                const { data: personalTasks } = await db
                     .from('personal_tasks')
                     .select('*')
                     .eq('user_id', currentUser.id)
@@ -970,7 +981,7 @@
             const tableName = currentTaskType === 'work' ? 'work_tasks' : 'personal_tasks';
             
             try {
-                const { error } = await supabase
+                const { error } = await db
                     .from(tableName)
                     .insert([{
                         user_id: currentUser.id,
@@ -995,14 +1006,14 @@
             
             try {
                 // Get current task state
-                const { data: task } = await supabase
+                const { data: task } = await db
                     .from(tableName)
                     .select('completed')
                     .eq('id', id)
                     .single();
                 
                 // Toggle completed state
-                const { error } = await supabase
+                const { error } = await db
                     .from(tableName)
                     .update({ completed: !task.completed })
                     .eq('id', id);
@@ -1021,7 +1032,7 @@
             const tableName = type === 'work' ? 'work_tasks' : 'personal_tasks';
             
             try {
-                const { error } = await supabase
+                const { error } = await db
                     .from(tableName)
                     .delete()
                     .eq('id', id);
@@ -1037,7 +1048,7 @@
         // Food Log
         async function loadFoodLog() {
             try {
-                const { data: foodEntries } = await supabase
+                const { data: foodEntries } = await db
                     .from('food_log')
                     .select('*')
                     .eq('user_id', currentUser.id)
@@ -1125,7 +1136,7 @@
             }
 
             try {
-                const { error } = await supabase
+                const { error } = await db
                     .from('food_log')
                     .insert([{
                         user_id: currentUser.id,
@@ -1149,7 +1160,7 @@
 
         async function deleteFoodEntry(id) {
             try {
-                const { error } = await supabase
+                const { error } = await db
                     .from('food_log')
                     .delete()
                     .eq('id', id);
@@ -1165,7 +1176,7 @@
         // Security Reviews
         async function loadSecurityReviews() {
             try {
-                const { data: reviews } = await supabase
+                const { data: reviews } = await db
                     .from('security_reviews')
                     .select('*')
                     .eq('user_id', currentUser.id);
@@ -1181,7 +1192,7 @@
                     ];
                     
                     await Promise.all(defaultData.map(d => 
-                        supabase.from('security_reviews').insert([{
+                        db.from('security_reviews').insert([{
                             user_id: currentUser.id,
                             ...d
                         }])
@@ -1219,9 +1230,9 @@
 
             if (aneesha !== null && srikanta !== null && karthik !== null) {
                 try {
-                    await supabase.from('security_reviews').update({ completed: parseInt(aneesha) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'aneesha');
-                    await supabase.from('security_reviews').update({ completed: parseInt(srikanta) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'srikanta');
-                    await supabase.from('security_reviews').update({ completed: parseInt(karthik) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'karthik');
+                    await db.from('security_reviews').update({ completed: parseInt(aneesha) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'aneesha');
+                    await db.from('security_reviews').update({ completed: parseInt(srikanta) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'srikanta');
+                    await db.from('security_reviews').update({ completed: parseInt(karthik) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'karthik');
                     
                     await loadSecurityReviews();
                 } catch (error) {
