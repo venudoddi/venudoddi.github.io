@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Venu's Command Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -41,14 +42,168 @@
             margin: 0 auto;
         }
 
-        header {
+        /* Auth Screen */
+        #auth-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+        }
+
+        .auth-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            position: relative;
+        }
+
+        .auth-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary));
+        }
+
+        .auth-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             text-align: center;
+        }
+
+        .auth-subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px solid var(--border);
+            color: var(--text-primary);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: rgba(0, 255, 135, 0.05);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: 2px solid var(--border);
+            background: transparent;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: var(--bg-dark);
+        }
+
+        .btn-primary:hover {
+            background: transparent;
+            color: var(--accent-primary);
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+        }
+
+        .auth-switch {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .auth-switch a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .auth-switch a:hover {
+            text-decoration: underline;
+        }
+
+        .error-message {
+            background: rgba(255, 56, 100, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+        }
+
+        .success-message {
+            background: rgba(0, 255, 135, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+        }
+
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* App Screen */
+        #app-screen {
+            display: none;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 40px;
             padding-bottom: 30px;
             border-bottom: 2px solid var(--border);
         }
 
-        h1 {
+        .header-left h1 {
             font-family: 'JetBrains Mono', monospace;
             font-size: 2.5rem;
             font-weight: 700;
@@ -64,6 +219,17 @@
             color: var(--text-dim);
             font-size: 0.9rem;
             letter-spacing: 2px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .user-email {
+            color: var(--text-dim);
+            font-size: 0.85rem;
         }
 
         .tabs {
@@ -187,66 +353,6 @@
             gap: 8px;
         }
 
-        .btn {
-            padding: 8px 16px;
-            border: 2px solid var(--border);
-            background: transparent;
-            color: var(--text-primary);
-            cursor: pointer;
-            font-family: 'Space Mono', monospace;
-            font-size: 0.85rem;
-            transition: all 0.3s;
-        }
-
-        .btn:hover {
-            border-color: var(--accent-primary);
-            color: var(--accent-primary);
-        }
-
-        .btn-primary {
-            background: var(--accent-primary);
-            border-color: var(--accent-primary);
-            color: var(--bg-dark);
-        }
-
-        .btn-primary:hover {
-            background: transparent;
-            color: var(--accent-primary);
-        }
-
-        .btn-small {
-            padding: 4px 12px;
-            font-size: 0.75rem;
-        }
-
-        .input-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--text-dim);
-            font-size: 0.9rem;
-        }
-
-        input, textarea, select {
-            width: 100%;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 2px solid var(--border);
-            color: var(--text-primary);
-            font-family: 'Space Mono', monospace;
-            font-size: 0.9rem;
-            transition: all 0.3s;
-        }
-
-        input:focus, textarea:focus, select:focus {
-            outline: none;
-            border-color: var(--accent-primary);
-            background: rgba(0, 255, 135, 0.05);
-        }
-
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -276,7 +382,7 @@
 
         .food-entry {
             display: grid;
-            grid-template-columns: 2fr 1fr auto;
+            grid-template-columns: 2fr 1fr auto auto;
             gap: 12px;
             align-items: end;
             margin-bottom: 12px;
@@ -356,6 +462,16 @@
             color: var(--danger);
         }
 
+        .sync-status {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(0, 255, 135, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+            font-size: 0.75rem;
+            border-radius: 12px;
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 1.8rem;
@@ -372,14 +488,79 @@
             .food-entry {
                 grid-template-columns: 1fr;
             }
+
+            header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+
+            .header-right {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Auth Screen -->
+    <div id="auth-screen">
+        <div class="auth-card">
+            <h1 class="auth-title">⚡ COMMAND CENTER</h1>
+            <p class="auth-subtitle">ENGINEERING MANAGER</p>
+
+            <div id="auth-error" class="error-message" style="display: none;"></div>
+            <div id="auth-success" class="success-message" style="display: none;"></div>
+
+            <!-- Login Form -->
+            <form id="login-form">
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" required placeholder="your@email.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary">LOGIN</button>
+                <div class="auth-switch">
+                    Don't have an account? <a id="show-signup">Sign up</a>
+                </div>
+            </form>
+
+            <!-- Signup Form -->
+            <form id="signup-form" style="display: none;">
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="signup-email" required placeholder="your@email.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="signup-password" required placeholder="Min. 6 characters">
+                </div>
+                <div class="input-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="signup-password-confirm" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary">SIGN UP</button>
+                <div class="auth-switch">
+                    Already have an account? <a id="show-login">Login</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App Screen -->
+    <div id="app-screen" class="container">
         <header>
-            <h1>⚡ COMMAND CENTER</h1>
-            <div class="subtitle">VENU MADHAV // ENGINEERING MANAGER</div>
+            <div class="header-left">
+                <h1>⚡ COMMAND CENTER</h1>
+                <div class="subtitle">VENU MADHAV // ENGINEERING MANAGER</div>
+            </div>
+            <div class="header-right">
+                <span class="sync-status">☁️ SYNCED</span>
+                <span class="user-email" id="user-email"></span>
+                <button class="btn btn-small" id="logout-btn">LOGOUT</button>
+            </div>
         </header>
 
         <div class="tabs">
@@ -452,9 +633,9 @@
                         <input type="text" id="food-item" placeholder="e.g., 2 chapatis with dal">
                     </div>
                     <div class="input-group" style="margin: 0;">
-                        <input type="number" id="food-calories" placeholder="Calories (auto-filled)">
+                        <input type="number" id="food-calories" placeholder="Calories">
                     </div>
-                    <button class="btn btn-primary" onclick="lookupCalories()">🔍 LOOKUP</button>
+                    <button class="btn btn-primary" onclick="lookupCalories()">🔍</button>
                     <button class="btn" onclick="addFoodEntry()">ADD</button>
                 </div>
                 <div id="lookup-status" style="margin-top: 12px; font-size: 0.85rem; color: var(--text-dim);"></div>
@@ -487,34 +668,6 @@
                 </div>
 
                 <button class="btn btn-primary" onclick="updateSecurityReview()" style="margin-top: 16px;">UPDATE PROGRESS</button>
-            </div>
-
-            <div class="card">
-                <div class="card-title">👥 TEAM MEMBERS</div>
-                <div class="task-item">
-                    <div>
-                        <div class="task-title">Rohith</div>
-                        <div class="task-meta">Gen AI on-prem testing</div>
-                    </div>
-                </div>
-                <div class="task-item">
-                    <div>
-                        <div class="task-title">Aneesha</div>
-                        <div class="task-meta">8 ESG security reviews</div>
-                    </div>
-                </div>
-                <div class="task-item">
-                    <div>
-                        <div class="task-title">Srikanta</div>
-                        <div class="task-meta">ESG Content Accelerator</div>
-                    </div>
-                </div>
-                <div class="task-item">
-                    <div>
-                        <div class="task-title">Karthik</div>
-                        <div class="task-meta">Metrics & L10 errors</div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -556,177 +709,195 @@
     </div>
 
     <script>
-        // ⚙️ CONFIGURATION - Update this after deploying your backend
-        const API_URL = 'http://localhost:3000'; // Change to your deployed API URL
-        
-        // Storage keys
-        const STORAGE_KEYS = {
-            workTasks: 'venu_work_tasks',
-            personalTasks: 'venu_personal_tasks',
-            foodLog: 'venu_food_log',
-            securityReviews: 'venu_security_reviews'
-        };
-
+        // Configuration
+        const API_URL = 'https://venu-tracker-api.onrender.com';
+        let supabase = null;
+        let currentUser = null;
         let currentTaskType = 'work';
         let todayDate = new Date().toISOString().split('T')[0];
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeTabs();
+        // Initialize Supabase
+        async function initSupabase() {
+            try {
+                const response = await fetch(`${API_URL}/api/config`);
+                const config = await response.json();
+                
+                supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
+                
+                // Check if user is already logged in
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    currentUser = session.user;
+                    showApp();
+                } else {
+                    showAuth();
+                }
+            } catch (error) {
+                console.error('Failed to initialize Supabase:', error);
+                showError('Failed to connect to database. Please refresh the page.');
+            }
+        }
+
+        // Auth Functions
+        function showAuth() {
+            document.getElementById('auth-screen').style.display = 'flex';
+            document.getElementById('app-screen').style.display = 'none';
+        }
+
+        function showApp() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'block';
+            document.getElementById('user-email').textContent = currentUser.email;
             loadAllData();
-            renderAllTasks();
-            renderFoodLog();
-            renderSecurityReviews();
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('auth-error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('auth-success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Login
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            const form = e.target;
+            form.classList.add('loading');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password,
+                });
+                
+                if (error) throw error;
+                
+                currentUser = data.user;
+                showApp();
+            } catch (error) {
+                showError(error.message || 'Login failed. Please check your credentials.');
+            } finally {
+                form.classList.remove('loading');
+            }
+        });
+
+        // Signup
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-password-confirm').value;
+            
+            if (password !== confirmPassword) {
+                showError('Passwords do not match!');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showError('Password must be at least 6 characters long.');
+                return;
+            }
+            
+            const form = e.target;
+            form.classList.add('loading');
+            
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email: email,
+                    password: password,
+                });
+                
+                if (error) throw error;
+                
+                currentUser = data.user;
+                showSuccess('Account created! Logging you in...');
+                setTimeout(() => showApp(), 1000);
+            } catch (error) {
+                showError(error.message || 'Signup failed. Please try again.');
+            } finally {
+                form.classList.remove('loading');
+            }
+        });
+
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            currentUser = null;
+            showAuth();
+        });
+
+        // Toggle between login and signup
+        document.getElementById('show-signup').addEventListener('click', () => {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('signup-form').style.display = 'block';
+        });
+
+        document.getElementById('show-login').addEventListener('click', () => {
+            document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
         });
 
         // Tab switching
-        function initializeTabs() {
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const tabName = btn.dataset.tab;
-                    
-                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                    
-                    btn.classList.add('active');
-                    document.getElementById(tabName).classList.add('active');
-                });
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                btn.classList.add('active');
+                document.getElementById(tabName).classList.add('active');
             });
-        }
+        });
 
-        // Initialize storage with sample data
-        function loadAllData() {
-            if (!localStorage.getItem(STORAGE_KEYS.workTasks)) {
-                const sampleWorkTasks = [
-                    {
-                        id: Date.now(),
-                        title: 'Review App Overviews',
-                        description: 'Review app overviews for accuracy',
-                        deadline: '2026-03-08',
-                        priority: 'asap',
-                        completed: false,
-                        createdAt: new Date().toISOString()
-                    },
-                    {
-                        id: Date.now() + 1,
-                        title: 'Complete Q1 2026 QGCs',
-                        description: '15 reportees - need ~2 per week',
-                        deadline: '2026-03-31',
-                        priority: 'urgent',
-                        completed: false,
-                        createdAt: new Date().toISOString()
-                    }
-                ];
-                localStorage.setItem(STORAGE_KEYS.workTasks, JSON.stringify(sampleWorkTasks));
-            }
-
-            if (!localStorage.getItem(STORAGE_KEYS.personalTasks)) {
-                const samplePersonalTasks = [
-                    {
-                        id: Date.now(),
-                        title: 'Book venue for Isha Saree function',
-                        description: 'July 4, 2026 - also need sarees, catering, invitations',
-                        deadline: '2026-03-30',
-                        priority: 'urgent',
-                        completed: false,
-                        createdAt: new Date().toISOString()
-                    }
-                ];
-                localStorage.setItem(STORAGE_KEYS.personalTasks, JSON.stringify(samplePersonalTasks));
-            }
-
-            if (!localStorage.getItem(STORAGE_KEYS.foodLog)) {
-                localStorage.setItem(STORAGE_KEYS.foodLog, JSON.stringify({}));
-            }
-
-            if (!localStorage.getItem(STORAGE_KEYS.securityReviews)) {
-                const securityData = {
-                    aneesha: { completed: 0, total: 8 },
-                    srikanta: { completed: 0, total: 1 },
-                    karthik: { completed: 0, total: 1 }
-                };
-                localStorage.setItem(STORAGE_KEYS.securityReviews, JSON.stringify(securityData));
-            }
+        // Load all data from Supabase
+        async function loadAllData() {
+            await Promise.all([
+                loadTasks(),
+                loadFoodLog(),
+                loadSecurityReviews()
+            ]);
         }
 
         // Task Management
-        function openAddTaskModal(type) {
-            currentTaskType = type;
-            document.getElementById('add-task-modal').classList.add('active');
-        }
-
-        function closeModal() {
-            document.getElementById('add-task-modal').classList.remove('active');
-            clearModalInputs();
-        }
-
-        function clearModalInputs() {
-            document.getElementById('task-title').value = '';
-            document.getElementById('task-desc').value = '';
-            document.getElementById('task-deadline').value = '';
-            document.getElementById('task-priority').value = 'normal';
-        }
-
-        function addTask() {
-            const title = document.getElementById('task-title').value;
-            const description = document.getElementById('task-desc').value;
-            const deadline = document.getElementById('task-deadline').value;
-            const priority = document.getElementById('task-priority').value;
-
-            if (!title) {
-                alert('Please enter a task title');
-                return;
-            }
-
-            const task = {
-                id: Date.now(),
-                title,
-                description,
-                deadline,
-                priority,
-                completed: false,
-                createdAt: new Date().toISOString()
-            };
-
-            const storageKey = currentTaskType === 'work' ? STORAGE_KEYS.workTasks : STORAGE_KEYS.personalTasks;
-            const tasks = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            tasks.push(task);
-            localStorage.setItem(storageKey, JSON.stringify(tasks));
-
-            closeModal();
-            renderAllTasks();
-        }
-
-        function toggleTaskComplete(type, id) {
-            const storageKey = type === 'work' ? STORAGE_KEYS.workTasks : STORAGE_KEYS.personalTasks;
-            const tasks = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            const task = tasks.find(t => t.id === id);
-            if (task) {
-                task.completed = !task.completed;
-                localStorage.setItem(storageKey, JSON.stringify(tasks));
-                renderAllTasks();
+        async function loadTasks() {
+            try {
+                // Load work tasks
+                const { data: workTasks } = await supabase
+                    .from('work_tasks')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+                
+                // Load personal tasks
+                const { data: personalTasks } = await supabase
+                    .from('personal_tasks')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+                
+                renderTasks('work', workTasks || []);
+                renderTasks('personal', personalTasks || []);
+            } catch (error) {
+                console.error('Error loading tasks:', error);
             }
         }
 
-        function deleteTask(type, id) {
-            if (!confirm('Delete this task?')) return;
-            
-            const storageKey = type === 'work' ? STORAGE_KEYS.workTasks : STORAGE_KEYS.personalTasks;
-            let tasks = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            tasks = tasks.filter(t => t.id !== id);
-            localStorage.setItem(storageKey, JSON.stringify(tasks));
-            renderAllTasks();
-        }
-
-        function renderAllTasks() {
-            renderTasks('work');
-            renderTasks('personal');
-        }
-
-        function renderTasks(type) {
-            const storageKey = type === 'work' ? STORAGE_KEYS.workTasks : STORAGE_KEYS.personalTasks;
-            const tasks = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            
+        function renderTasks(type, tasks) {
             if (type === 'work') {
                 const urgentTasks = tasks.filter(t => !t.completed && (t.priority === 'urgent' || t.priority === 'asap'));
                 const normalTasks = tasks.filter(t => !t.completed && t.priority === 'normal');
@@ -763,16 +934,147 @@
                         ${deadlineText ? `<div class="task-meta">${deadlineText}</div>` : ''}
                     </div>
                     <div class="task-actions">
-                        <button class="btn btn-small" onclick="toggleTaskComplete('${type}', ${task.id})">
+                        <button class="btn btn-small" onclick="toggleTaskComplete('${type}', '${task.id}')">
                             ${task.completed ? '↻' : '✓'}
                         </button>
-                        <button class="btn btn-small" onclick="deleteTask('${type}', ${task.id})">×</button>
+                        <button class="btn btn-small" onclick="deleteTask('${type}', '${task.id}')">×</button>
                     </div>
                 </div>
             `;
         }
 
+        function openAddTaskModal(type) {
+            currentTaskType = type;
+            document.getElementById('add-task-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('add-task-modal').classList.remove('active');
+            document.getElementById('task-title').value = '';
+            document.getElementById('task-desc').value = '';
+            document.getElementById('task-deadline').value = '';
+            document.getElementById('task-priority').value = 'normal';
+        }
+
+        async function addTask() {
+            const title = document.getElementById('task-title').value;
+            const description = document.getElementById('task-desc').value;
+            const deadline = document.getElementById('task-deadline').value;
+            const priority = document.getElementById('task-priority').value;
+
+            if (!title) {
+                alert('Please enter a task title');
+                return;
+            }
+
+            const tableName = currentTaskType === 'work' ? 'work_tasks' : 'personal_tasks';
+            
+            try {
+                const { error } = await supabase
+                    .from(tableName)
+                    .insert([{
+                        user_id: currentUser.id,
+                        title,
+                        description,
+                        deadline: deadline || null,
+                        priority,
+                        completed: false
+                    }]);
+                
+                if (error) throw error;
+                
+                closeModal();
+                await loadTasks();
+            } catch (error) {
+                alert('Failed to add task: ' + error.message);
+            }
+        }
+
+        async function toggleTaskComplete(type, id) {
+            const tableName = type === 'work' ? 'work_tasks' : 'personal_tasks';
+            
+            try {
+                // Get current task state
+                const { data: task } = await supabase
+                    .from(tableName)
+                    .select('completed')
+                    .eq('id', id)
+                    .single();
+                
+                // Toggle completed state
+                const { error } = await supabase
+                    .from(tableName)
+                    .update({ completed: !task.completed })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                await loadTasks();
+            } catch (error) {
+                alert('Failed to update task: ' + error.message);
+            }
+        }
+
+        async function deleteTask(type, id) {
+            if (!confirm('Delete this task?')) return;
+            
+            const tableName = type === 'work' ? 'work_tasks' : 'personal_tasks';
+            
+            try {
+                const { error } = await supabase
+                    .from(tableName)
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                await loadTasks();
+            } catch (error) {
+                alert('Failed to delete task: ' + error.message);
+            }
+        }
+
         // Food Log
+        async function loadFoodLog() {
+            try {
+                const { data: foodEntries } = await supabase
+                    .from('food_log')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .eq('date', todayDate)
+                    .order('created_at', { ascending: true });
+                
+                renderFoodLog(foodEntries || []);
+            } catch (error) {
+                console.error('Error loading food log:', error);
+            }
+        }
+
+        function renderFoodLog(entries) {
+            const totalCalories = entries.reduce((sum, entry) => sum + entry.calories, 0);
+            const remaining = 1900 - totalCalories;
+            const percentage = Math.min((totalCalories / 1900) * 100, 100);
+
+            document.getElementById('today-calories').textContent = totalCalories;
+            document.getElementById('remaining-calories').textContent = remaining;
+            document.getElementById('calorie-progress').style.width = percentage + '%';
+            document.getElementById('calorie-progress').textContent = Math.round(percentage) + '%';
+
+            if (entries.length === 0) {
+                document.getElementById('food-log').innerHTML = '<div style="color: var(--text-dim); padding: 16px;">No entries for today</div>';
+            } else {
+                document.getElementById('food-log').innerHTML = entries.map(entry => `
+                    <div class="food-log-item">
+                        <div>
+                            <div>${entry.item}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-dim);">${entry.time} • ${entry.calories} cal</div>
+                        </div>
+                        <button class="btn btn-small" onclick="deleteFoodEntry('${entry.id}')">×</button>
+                    </div>
+                `).join('');
+            }
+        }
+
         async function lookupCalories() {
             const foodItem = document.getElementById('food-item').value.trim();
             const statusDiv = document.getElementById('lookup-status');
@@ -789,15 +1091,9 @@
             try {
                 const response = await fetch(`${API_URL}/api/nutrition`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query: foodItem })
                 });
-
-                if (!response.ok) {
-                    throw new Error('API request failed');
-                }
 
                 const data = await response.json();
                 
@@ -819,7 +1115,7 @@
             }
         }
 
-        function addFoodEntry() {
+        async function addFoodEntry() {
             const item = document.getElementById('food-item').value;
             const calories = parseInt(document.getElementById('food-calories').value);
 
@@ -828,88 +1124,82 @@
                 return;
             }
 
-            const foodLog = JSON.parse(localStorage.getItem(STORAGE_KEYS.foodLog) || '{}');
-            
-            if (!foodLog[todayDate]) {
-                foodLog[todayDate] = [];
-            }
-
-            foodLog[todayDate].push({
-                id: Date.now(),
-                item,
-                calories,
-                time: new Date().toLocaleTimeString()
-            });
-
-            localStorage.setItem(STORAGE_KEYS.foodLog, JSON.stringify(foodLog));
-
-            document.getElementById('food-item').value = '';
-            document.getElementById('food-calories').value = '';
-            document.getElementById('lookup-status').textContent = '';
-
-            renderFoodLog();
-        }
-
-        function deleteFoodEntry(id) {
-            const foodLog = JSON.parse(localStorage.getItem(STORAGE_KEYS.foodLog) || '{}');
-            
-            if (foodLog[todayDate]) {
-                foodLog[todayDate] = foodLog[todayDate].filter(entry => entry.id !== id);
-                localStorage.setItem(STORAGE_KEYS.foodLog, JSON.stringify(foodLog));
-                renderFoodLog();
+            try {
+                const { error } = await supabase
+                    .from('food_log')
+                    .insert([{
+                        user_id: currentUser.id,
+                        date: todayDate,
+                        item,
+                        calories,
+                        time: new Date().toLocaleTimeString()
+                    }]);
+                
+                if (error) throw error;
+                
+                document.getElementById('food-item').value = '';
+                document.getElementById('food-calories').value = '';
+                document.getElementById('lookup-status').textContent = '';
+                
+                await loadFoodLog();
+            } catch (error) {
+                alert('Failed to add food entry: ' + error.message);
             }
         }
 
-        function renderFoodLog() {
-            const foodLog = JSON.parse(localStorage.getItem(STORAGE_KEYS.foodLog) || '{}');
-            const todayLog = foodLog[todayDate] || [];
-            
-            const totalCalories = todayLog.reduce((sum, entry) => sum + entry.calories, 0);
-            const remaining = 1900 - totalCalories;
-            const percentage = Math.min((totalCalories / 1900) * 100, 100);
-
-            document.getElementById('today-calories').textContent = totalCalories;
-            document.getElementById('remaining-calories').textContent = remaining;
-            document.getElementById('calorie-progress').style.width = percentage + '%';
-            document.getElementById('calorie-progress').textContent = Math.round(percentage) + '%';
-
-            if (todayLog.length === 0) {
-                document.getElementById('food-log').innerHTML = '<div style="color: var(--text-dim); padding: 16px;">No entries for today</div>';
-            } else {
-                document.getElementById('food-log').innerHTML = todayLog.map(entry => `
-                    <div class="food-log-item">
-                        <div>
-                            <div>${entry.item}</div>
-                            <div style="font-size: 0.8rem; color: var(--text-dim);">${entry.time} • ${entry.calories} cal</div>
-                        </div>
-                        <button class="btn btn-small" onclick="deleteFoodEntry(${entry.id})">×</button>
-                    </div>
-                `).join('');
+        async function deleteFoodEntry(id) {
+            try {
+                const { error } = await supabase
+                    .from('food_log')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                await loadFoodLog();
+            } catch (error) {
+                alert('Failed to delete entry: ' + error.message);
             }
         }
 
         // Security Reviews
-        function updateSecurityReview() {
-            const aneesha = prompt('Aneesha completed reviews (out of 8):');
-            const srikanta = prompt('Srikanta completed reviews (out of 1):');
-            const karthik = prompt('Karthik completed reviews (out of 1):');
-
-            if (aneesha !== null && srikanta !== null && karthik !== null) {
-                const data = {
-                    aneesha: { completed: parseInt(aneesha) || 0, total: 8 },
-                    srikanta: { completed: parseInt(srikanta) || 0, total: 1 },
-                    karthik: { completed: parseInt(karthik) || 0, total: 1 }
-                };
-
-                localStorage.setItem(STORAGE_KEYS.securityReviews, JSON.stringify(data));
-                renderSecurityReviews();
+        async function loadSecurityReviews() {
+            try {
+                const { data: reviews } = await supabase
+                    .from('security_reviews')
+                    .select('*')
+                    .eq('user_id', currentUser.id);
+                
+                if (reviews && reviews.length > 0) {
+                    renderSecurityReviews(reviews);
+                } else {
+                    // Initialize with default data
+                    const defaultData = [
+                        { team_member: 'aneesha', completed: 0, total: 8 },
+                        { team_member: 'srikanta', completed: 0, total: 1 },
+                        { team_member: 'karthik', completed: 0, total: 1 }
+                    ];
+                    
+                    await Promise.all(defaultData.map(d => 
+                        supabase.from('security_reviews').insert([{
+                            user_id: currentUser.id,
+                            ...d
+                        }])
+                    ));
+                    
+                    renderSecurityReviews(defaultData);
+                }
+            } catch (error) {
+                console.error('Error loading security reviews:', error);
             }
         }
 
-        function renderSecurityReviews() {
-            const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.securityReviews));
+        function renderSecurityReviews(reviews) {
+            const aneesha = reviews.find(r => r.team_member === 'aneesha') || { completed: 0, total: 8 };
+            const srikanta = reviews.find(r => r.team_member === 'srikanta') || { completed: 0, total: 1 };
+            const karthik = reviews.find(r => r.team_member === 'karthik') || { completed: 0, total: 1 };
             
-            const totalCompleted = data.aneesha.completed + data.srikanta.completed + data.karthik.completed;
+            const totalCompleted = aneesha.completed + srikanta.completed + karthik.completed;
             const totalReviews = 11;
             const totalPending = totalReviews - totalCompleted;
 
@@ -917,9 +1207,27 @@
             document.getElementById('completed-reviews').textContent = totalCompleted;
             document.getElementById('pending-reviews').textContent = totalPending;
 
-            document.getElementById('aneesha-progress').textContent = `${data.aneesha.completed}/${data.aneesha.total}`;
-            document.getElementById('srikanta-progress').textContent = `${data.srikanta.completed}/${data.srikanta.total}`;
-            document.getElementById('karthik-progress').textContent = `${data.karthik.completed}/${data.karthik.total}`;
+            document.getElementById('aneesha-progress').textContent = `${aneesha.completed}/${aneesha.total}`;
+            document.getElementById('srikanta-progress').textContent = `${srikanta.completed}/${srikanta.total}`;
+            document.getElementById('karthik-progress').textContent = `${karthik.completed}/${karthik.total}`;
+        }
+
+        async function updateSecurityReview() {
+            const aneesha = prompt('Aneesha completed reviews (out of 8):');
+            const srikanta = prompt('Srikanta completed reviews (out of 1):');
+            const karthik = prompt('Karthik completed reviews (out of 1):');
+
+            if (aneesha !== null && srikanta !== null && karthik !== null) {
+                try {
+                    await supabase.from('security_reviews').update({ completed: parseInt(aneesha) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'aneesha');
+                    await supabase.from('security_reviews').update({ completed: parseInt(srikanta) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'srikanta');
+                    await supabase.from('security_reviews').update({ completed: parseInt(karthik) || 0 }).eq('user_id', currentUser.id).eq('team_member', 'karthik');
+                    
+                    await loadSecurityReviews();
+                } catch (error) {
+                    alert('Failed to update: ' + error.message);
+                }
+            }
         }
 
         // Close modal on outside click
@@ -927,6 +1235,11 @@
             if (e.target.id === 'add-task-modal') {
                 closeModal();
             }
+        });
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            initSupabase();
         });
     </script>
 </body>
